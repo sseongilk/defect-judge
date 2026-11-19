@@ -143,6 +143,14 @@
     return r.w;
   }
   const fmt = n => Math.floor(n).toLocaleString('en-US');
+  // 랭킹용 짧은 점수: 9,160 / 44.3k / 105k / 1.23M (반올림하지 않고 내림)
+  function fmtShort(n) {
+    n = Math.floor(n);
+    if (n < 10000) return fmt(n);
+    if (n < 100000) return (Math.floor(n / 100) / 10).toFixed(1) + 'k';
+    if (n < 1000000) return Math.floor(n / 1000) + 'k';
+    return (Math.floor(n / 10000) / 100).toFixed(2) + 'M';
+  }
   // 정해진 폭 안에 맞추기: 넘치면 뒤를 줄이고 .. 붙임 (작은 글꼴은 뭉개져서 쓰지 않음)
   function fitText(t, maxW, f = 'm') {
     t = String(t);
@@ -1352,7 +1360,7 @@
         } else {
           miniHead(21, y + 4, r.skin);
         }
-        const sc = fmt(r.score);
+        const sc = fmtShort(r.score);
         const sw = textW(sc, 'm');
         ptext(sc, 118, y + 2, 'm', 'O', { edge: null, align: 'r' });
         if (tab !== 'team') {
