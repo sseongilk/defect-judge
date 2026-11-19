@@ -1009,31 +1009,12 @@
     }
     sprite(100, 109, KNOB); sprite(110, 109, KNOB);
 
-    // 모니터 왼쪽 위: 보스 안내 / 반장 지시 / 카메라 이름
-    if (it.boss && G.phase !== 'result') {
-      const found = it.parts.filter(q => q.found).length;
-      const label = (it.claim ? '반품! ' : '') + '결함 터치 ' + found + '/' + it.parts.length;
-      const w = textW(label, 's') + 6;
-      rrect(64 - w / 2, 95, w, 11, 'P');
-      ptext(label, 64, 96, 's', 'W', { edge: null, align: 'c' });
-      ptext('CAM 1', 14, 42, 's', 'S', { edge: null });
-    } else if (G.rule) {
-      const label = DEFECT_NAME[G.rule.type] + '만 불량! ' + G.rule.left;
-      const w = textW(label, 's') + 6;
-      const blink = G.rule.fresh && G.phase !== 'judge' && ((G.t * 6) | 0) % 2 === 0;
-      rrect(12, 41, w, 11, blink ? 'Y' : 'P');
-      ptext(label, 12 + w / 2, 42, 's', blink ? 'O' : 'W', { edge: null, align: 'c' });
-    } else ptext('CAM 1', 14, 42, 's', 'S', { edge: null });
-    // 오른쪽 위: 피버 / 콤보
-    if (fever) {
-      const label = 'FEVER x2';
-      const w = textW(label, 's') + 6;
-      rrect(116 - w, 42, w, 11, rb(2));
-      ptext(label, 116 - w / 2, 43, 's', 'O', { edge: null, align: 'c' });
-    } else if (G.combo >= 2) {
-      const label = G.combo + '콤보!';
-      const w = textW(label, 's') + 6;
-      rrect(116 - w, 42, w, 11, 'Y');
+    // 모니터 안에는 결함을 가리지 않는 작은 표시만: 왼쪽 위 카메라 이름, 오른쪽 위 콤보(몸통 밖 칸)
+    ptext('CAM 1', 14, 42, 's', 'S', { edge: null });
+    if (G.combo >= 2 || fever) {
+      const label = 'x' + G.combo;
+      const w = Math.max(18, textW(label, 's') + 6);
+      rrect(116 - w, 42, w, 11, fever ? rb(2) : 'Y');
       ptext(label, 116 - w / 2, 43, 's', 'O', { edge: null, align: 'c' });
     }
 
@@ -1119,8 +1100,21 @@
     drawJudgeButton(NG_BTN, 'P', 'p', CROSS_X, '불량', G.pressT > 0 && G.pressed === 'ng');
     if (it.boss && G.phase !== 'result') {
       ctx.fillStyle = 'rgba(255,244,224,0.6)'; ctx.fillRect(4, 164, 120, 44);
-      ptext('모니터 속 결함을 터치!', 64, 211, 'm', 'p', { edge: null, align: 'c' });
-    } else ptext('◀ 밀어서 판정 ▶', 64, 211, 'm', 'o', { edge: null, align: 'c' });
+    }
+    // 맨 아래 안내 줄: 보스 / 반장 지시 / 기본 안내 (모니터를 가리지 않음)
+    const foot = (label, fill, fg) => {
+      const w = Math.min(124, textW(label, 'm') + 10);
+      rrect(64 - w / 2, 209, w, 14, fill, 'O');
+      ptext(label, 64, 211, 'm', fg, { edge: null, align: 'c' });
+    };
+    if (it.boss && G.phase !== 'result') {
+      const found = it.parts.filter(q => q.found).length;
+      foot((it.claim ? '반품! ' : '') + '결함 터치 ' + found + '/' + it.parts.length, 'P', 'W');
+    } else if (G.rule) {
+      const blink = G.rule.fresh && G.phase !== 'judge' && ((G.t * 6) | 0) % 2 === 0;
+      foot(DEFECT_NAME[G.rule.type] + '만 불량! (' + G.rule.left + ')', blink ? 'Y' : 'P', blink ? 'O' : 'W');
+    } else if (fever) foot('FEVER 점수 x2', rb(2), 'O');
+    else ptext('◀ 밀어서 판정 ▶', 64, 211, 'm', 'o', { edge: null, align: 'c' });
     ctx.restore();
   }
   function drawJudgeButton(b, fill, dark, icon, label, down) {
