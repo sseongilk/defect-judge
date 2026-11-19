@@ -1847,6 +1847,8 @@
     else if (shot === 'fever') playAt(null, () => { G.fever = 5; G.combo = 12; G.freezeT = 2; });
     else if (shot === 'rule') playAt(Object.assign(makeItem(3, 0), { defect: 'crack', decoy: null, lvl: 0, dx: 12, dy: 34, shiny: true, gold: false }),
       () => { G.rule = { type: 'uncoat', left: 4, fresh: false }; G.phase = 'result'; G.pt = 0.5; judgeShow('ok'); });
+    else if (shot === 'ruleon') playAt(Object.assign(makeItem(3, 0), { defect: 'crack', decoy: null, lvl: 0, dx: 12, dy: 34, shiny: false, gold: false }),
+      () => { G.rule = { type: 'uncoat', left: 4, fresh: false }; });
     else if (shot === 'boss') playAt(makeBoss(4, 0, false), () => { G.items[0].parts[0].found = true; G.taps.push({ x: 60, y: 70, t: 0.3, ok: false }); });
     else if (shot === 'gold') playAt(Object.assign(makeItem(2, 0), { gold: true, shiny: false, defect: null, decoy: 'dust', dx: 20, dy: 5 }),
       () => { G.hintN = 2; G.items.forEach((x, i) => { if (i === 1) x.shiny = true; }); });
