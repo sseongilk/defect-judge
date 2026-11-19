@@ -1,0 +1,71 @@
+<title>불량 판정소</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/*FONTS*/
+/* 한 화면짜리 도트 게임: 자주색 바탕 가운데에 128x224 캔버스를 정수 배율로 확대 */
+:root {
+  --bg: #4a3054;
+  --ink: #4a3054;
+  --paper: #fff4e0;
+  --focus: #7ec4f0;
+  --font-pixel: 'Galmuri9', 'Galmuri11B', monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#wrap {
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 8px;
+}
+#stage { position: relative; flex: none; }
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  touch-action: none;
+  cursor: pointer;
+  outline: none;
+}
+#game:focus-visible { box-shadow: 0 0 0 3px var(--focus); }
+#nick {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-pixel);
+  text-align: center;
+  -webkit-user-select: text;
+  user-select: text;
+}
+#nick:focus-visible { background: #fff; }
+#nick[hidden] { display: none; }
+</style>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="game" width="128" height="224" tabindex="0" aria-label="불량 판정소 게임 화면. 왼쪽 화살표는 양품, 오른쪽 화살표는 불량"></canvas>
+    <input id="nick" type="text" maxlength="8" autocomplete="off" spellcheck="false" enterkeyhint="done" aria-label="플레이어 이름" hidden>
+  </div>
+</div>
+<script>
+/*GAME*/
+</script>
