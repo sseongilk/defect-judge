@@ -606,8 +606,10 @@
       if (G.left <= 0) { G.left = 0; judge(null); }
     } else if (G.phase === 'result') {
       if (G.pt >= 0.7) {
-        G.cur++; G.popup = null;
+        G.popup = null;
+        // 게임 끝 화면은 마지막 시트를 배경으로 그리므로 다음 시트로 넘기지 않음
         if (G.hearts <= 0) { gameOver(); return; }
+        G.cur++;
         G.phase = 'scan'; G.pt = 0;
         ensureItems();
       }
@@ -1035,9 +1037,9 @@
   function frame(ts) {
     const dt = Math.min(0.05, last ? (ts - last) / 1000 : 0);
     last = ts;
-    update(dt);
-    draw();
+    // 한 프레임에서 오류가 나도 루프가 멈추지 않게 다음 프레임을 먼저 예약
     requestAnimationFrame(frame);
+    try { update(dt); draw(); } catch (e) { console.error(e); }
   }
 
   async function boot() {
@@ -1048,7 +1050,7 @@
     WALL = makeWall();
     G.state = 'title';
     Rank.init();
-    // 로컬 확인용 화면 (?shot=play|over|rank|name). 게시 페이지에는 영향 없음
+    // 로컬 확인용 화면 (?shot=play|over|rank|name|run). 게시 페이지에는 영향 없음
     const shot = new URLSearchParams(location.search).get('shot');
     if (shot) {
       G.nick = G.nick || '테스트';
@@ -1061,6 +1063,11 @@
         [['검사왕', 31800], ['핀홀헌터', 22650], ['테스트', 12450], ['초보', 3200]].forEach(([n, s]) => Rank.addLocal(n, s, 3));
         goRank('title');
       } else if (shot === 'name') openName('title');
+      else if (shot === 'run') {   // 입력 없이 20초 진행 → 시간 초과 3번으로 게임 끝까지
+        newGame();
+        for (let i = 0; i < 400; i++) update(0.05);
+        draw();
+      }
     }
     requestAnimationFrame(frame);
   }
