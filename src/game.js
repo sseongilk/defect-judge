@@ -1029,20 +1029,9 @@
           const passed = it.defect && it.ruled && it.defect !== it.ruled;
           const bad = it.defect && !passed;
           dashedBox(bx, by, bw, bh, bad ? 'P' : 'M');
-          const name = DEFECT_NAME[it.defect || it.decoy] + (passed ? ' 통과' : '');
-          const lw = textW(name, 's') + 6;
-          const lx = Math.max(12, Math.min(116 - lw, bx + bw / 2 - lw / 2));
-          const ly = b.y < 20 ? by + bh + 2 : by - 13;
-          rrect(lx, ly, lw, 11, 'W');
-          ptext(name, lx + lw / 2, ly + 1, 's', bad ? 'p' : 'm', { edge: null, align: 'c' });
         }
       }
-      if (G.popup) {
-        const good = it.result.ok;
-        const yy = 94 - Math.round(Math.max(0, 0.12 - G.pt) * 30);
-        ptext(G.popup, 64, yy, 'b', good ? 'Y' : 'P', { align: 'c', shadow: good ? 'p' : 'O' });
-        if (good && (G.popup === 'PERFECT!' || it.boss)) { sprite(14, 94, SPARK); sprite(109, 92, SPARK); }
-      }
+      // 글자는 모니터 밖(맨 아래 줄)에만: 결함 위치는 점선 상자로만 표시
     }
     // 터치 자국
     G.taps.forEach(t => {
@@ -1107,7 +1096,17 @@
       rrect(64 - w / 2, 209, w, 14, fill, 'O');
       ptext(label, 64, 211, 'm', fg, { edge: null, align: 'c' });
     };
-    if (it.boss && G.phase !== 'result') {
+    if (G.phase === 'result' && G.popup) {
+      // 판정 결과: 문구 + 결함 이름 (예: PERFECT! 크랙 / MISS! 핀홀 / 크랙 통과)
+      const good = it.result.ok;
+      let name = '';
+      if (!it.boss && (it.defect || it.decoy)) {
+        const passed = it.defect && it.ruled && it.defect !== it.ruled;
+        name = DEFECT_NAME[it.defect || it.decoy] + (passed ? ' 통과' : it.decoy ? '(양품)' : '');
+      }
+      foot(G.popup + (name ? ' ' + name : ''), good ? 'Y' : 'P', good ? 'O' : 'W');
+      if (good && (G.popup === 'PERFECT!' || it.boss) && ((G.t * 8) | 0) % 2 === 0) { sprite(2, 212, SPARK); sprite(121, 212, SPARK); }
+    } else if (it.boss && G.phase !== 'result') {
       const found = it.parts.filter(q => q.found).length;
       foot((it.claim ? '반품! ' : '') + '결함 터치 ' + found + '/' + it.parts.length, 'P', 'W');
     } else if (G.rule) {
