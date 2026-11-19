@@ -690,10 +690,6 @@
         if (good && G.popup === 'PERFECT!') { sprite(22, 94, SPARK); sprite(101, 92, SPARK); }
       }
     }
-    if (G.stageT > 0) {
-      rrect(30, 54, 68, 16, 'Y', 'O', 'y');
-      ptext('STAGE ' + G.stage + '!', 64, 56, 'b', 'O', { edge: null, align: 'c' });
-    }
 
     // 카메라 + 컨베이어
     for (let k = 0; k < 5; k++) rect(62 - k, 125 + k, 4 + 2 * k, 1, k % 2 === 0 ? 'Y' : 'cream');
@@ -724,7 +720,13 @@
     sprite(0, 108 + jump, (G.t % 2.7) < 0.12 ? INSPECTOR_BLINK : INSPECTOR);
     sprite(20, 122 + jump, LOUPE);
     if (G.phase === 'result' && !it.result.ok) sprite(19, 106, SWEAT);
-    ptext('STAGE ' + G.stage, 106, 120, 's', 'l', { edge: null, align: 'c' });
+    if (G.stageT > 0) {
+      // 스테이지 상승: 화면을 가리지 않게 오른쪽 작은 표시만 노란 알약으로 통통 튀게
+      const hop = reduceMotion ? 0 : Math.round(Math.abs(Math.sin(G.stageT * 9)) * -3 * Math.min(1, G.stageT));
+      rrect(85, 117 + hop, 42, 11, 'Y', 'O', 'y');
+      ptext('STAGE ' + G.stage, 106, 119 + hop, 's', 'O', { edge: null, align: 'c' });
+      if ((G.stageT * 6 | 0) % 2 === 0) { sprite(82, 113 + hop, SPARK); }
+    } else ptext('STAGE ' + G.stage, 106, 120, 's', 'l', { edge: null, align: 'c' });
 
     // 버튼
     drawJudgeButton(OK_BTN, 'M', 'm', CIRCLE_O, '양품', G.pressT > 0 && G.pressed === 'ok');
@@ -1054,7 +1056,8 @@
     const shot = new URLSearchParams(location.search).get('shot');
     if (shot) {
       G.nick = G.nick || '테스트';
-      if (shot === 'play' || shot === 'over') {
+      if (shot === 'stage') { newGame(); G.stage = 2; G.stageT = 1.0; G.frozen = true; G.phase = 'judge'; G.limit = 3; G.left = 3; }
+      else if (shot === 'play' || shot === 'over') {
         newGame(); G.score = 12450; G.combo = 7; G.hearts = 2; G.stage = 3;
         G.items[G.cur] = Object.assign(makeItem(1), { defect: 'pin', lvl: 0, dx: 30, dy: 34, mood: 'worry' });
         G.phase = 'judge'; G.limit = 3; G.left = 2; G.frozen = shot === 'play'; G.t = 1;
