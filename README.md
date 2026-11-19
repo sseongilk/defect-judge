@@ -2,6 +2,8 @@
 
 컨베이어로 들어오는 전극 시트를 보고 양품·불량을 빠르게 판정하는 도트 게임.
 
+처음 하는 사람은 [튜토리얼](TUTORIAL.md) 참고 (화면 그림은 `tutorial/`).
+
 ## 실행
 - 웹 공개: https://sseongilk.github.io/defect-judge/ (GitHub Pages, `docs/index.html`)
 - PC 확인: `dist/play.html`을 브라우저로 열기
@@ -59,6 +61,7 @@
 - `src/page.html` : 페이지 틀 (캔버스, 이름 입력칸, 스타일)
 - `tools/build.py` : 갈무리 글꼴을 필요한 글자만 잘라 넣고 `dist/`에 한 파일로 묶음
 - `tools/supabase.sql` : 공용 랭킹·채팅 테이블과 저장 함수 (여러 번 실행해도 됨)
+- `TUTORIAL.md`, `tutorial/` : 플레이 안내 문서와 화면 그림
 - `docs/index.html` : 빌드 결과 (GitHub Pages 게시본)
 - `fonts/` : 갈무리 도트 글꼴 원본 (SIL OFL 1.1, `fonts/OFL.md`, https://github.com/quiple/galmuri)
 

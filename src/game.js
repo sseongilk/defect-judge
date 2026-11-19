@@ -1873,9 +1873,9 @@
       if (shot === 'longover') { playAt(); G.total = 0; gameOver(); G.st = 1; G.unlockMsg = '꾸미기 해금! (분홍, 민트, 노랑, 보라, 리본, 안경, 왕관)'; G.unlockN = 7; }
     }
     else if (shot === 'chat' || shot === 'chattitle') {   // 가짜 대화로 화면 확인 (서버에 쓰지 않음)
-      G.nick = '김성일'; G.skin = 21; Chat.fake = true; Rank.uid = 'me'; Chat.seen = 1; Chat.status = 'ok';
-      [['시스템2팀 이동', 1, '오늘의 판 보스 너무 빠름 ㅠㅠ', 'x'], ['김성일', 21, '반장 지시 나오면 꼭 아래 글자 보세요', 'me'],
-        ['핀홀헌터', 2, '금색 전극 처음 봄!! 1000점 개꿀', 'y'], ['검사왕', 33, '코팅팀 1등 가즈아 씨발', 'z'], ['김성일', 21, 'ㅋㅋ 검사팀이 따라잡는다', 'me']]
+      G.nick = '테스트'; G.skin = 21; Chat.fake = true; Rank.uid = 'me'; Chat.seen = 1; Chat.status = 'ok';
+      [['검사신입', 1, '오늘의 판 보스 너무 빠름 ㅠㅠ', 'x'], ['테스트', 21, '반장 지시 나오면 꼭 아래 글자 보세요', 'me'],
+        ['핀홀헌터', 2, '금색 전극 처음 봄!! 1000점 개꿀', 'y'], ['검사왕', 33, '검사기술팀 1등 가즈아 씨발', 'z'], ['테스트', 21, 'ㅋㅋ 공정기술팀이 따라잡는다', 'me']]
         .forEach(([nick, skin, text, uid], i) => Chat.rows.push({ id: i + 1, uid, nick, skin, text: maskBad(text), at: '14:0' + (i + 2) }));
       if (shot === 'chat') openChat();
     }
