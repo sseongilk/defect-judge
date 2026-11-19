@@ -9,6 +9,7 @@
   const stageEl = document.getElementById('stage');
   const wrapEl = document.getElementById('wrap');
   const nickEl = document.getElementById('nick');
+  const chatEl = document.getElementById('chatin');
   ctx.imageSmoothingEnabled = false;
 
   // ---------- 저장 (브라우저 저장소는 실패할 수 있음) ----------
@@ -1161,6 +1162,7 @@
   const T_SKIN = { x: 84, y: 184, w: 38, h: 14 };
   const T_NAME = { x: 6, y: 202, w: 52, h: 14 };
   const T_SOUND = { x: 110, y: 2, w: 16, h: 12 };
+  const T_CHAT = { x: 62, y: 202, w: 60, h: 14 };
 
   function drawTitle() {
     ctx.drawImage(WALL, 0, 0);
@@ -1208,6 +1210,22 @@
     button(T_NAME, 'W', 'cream3', '이름·팀', 'm', 'O');
 
     const best = Math.max(G.best, (Rank.mine() || {}).best || 0);
+    if (Chat.enabled()) {
+      // 채팅 버튼 + 새 글 수, BEST는 인사 말풍선 아래로
+      button(T_CHAT, 'Y', 'y', '채팅', 'm', 'O');
+      const n = Chat.unread();
+      if (n > 0) {
+        const label = n > 9 ? '9+' : String(n);
+        const w = Math.max(12, textW(label, 's') + 6);
+        rrect(124 - w, 198, w, 10, 'R', 'O');
+        ptext(label, 124 - w / 2, 199, 's', 'W', { edge: null, align: 'c' });
+      }
+      const bt = 'BEST ' + fmt(best);
+      const bw = textW(bt, 's');
+      sprite(64 - bw / 2 - 9, 98, STAR);
+      ptext(bt, 64 + 0, 98, 's', 'o', { edge: null, align: 'c' });
+      return;
+    }
     // 점수가 크면 BEST 글자를 빼서 이름·팀 버튼과 겹치지 않게
     const bt = textW('BEST ' + fmt(best), 's') <= 50 ? 'BEST ' + fmt(best) : fmt(best);
     const bw = textW(bt, 's');
@@ -1262,6 +1280,7 @@
     nickEl.hidden = true;
     nickEl.blur();
     if (save && G.nameNext === 'play') newGame(G.pendingMode);
+    else if (save && G.nameNext === 'chat') openChat();
     else { G.state = 'title'; G.st = 0; }
   }
   function cycleTeam(d) {
@@ -1412,6 +1431,158 @@
     button(R_BACK, 'P', 'p', '돌아가기', 'b', 'W', 'p');
   }
 
+  // ---------- 채팅 (웹 공개판 Supabase에서만) ----------
+  // 줄바꿈: 띄어쓰기 단위로 나누고, 한 단어가 너무 길면 글자 단위로 자름
+  function wrapText(t, maxW, f) {
+    const lines = []; let cur = '';
+    for (const word of t.split(' ')) {
+      const tryLine = cur ? cur + ' ' + word : word;
+      if (textW(tryLine, f) <= maxW) { cur = tryLine; continue; }
+      if (cur) lines.push(cur);
+      cur = '';
+      for (const ch of Array.from(word)) {
+        if (textW(cur + ch, f) > maxW && cur) { lines.push(cur); cur = ch; } else cur += ch;
+      }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+  // 기본 비속어 가림 (화면에 보일 때 * 로 바꿈)
+  const BAD_WORDS = ['씨발', '시발', '씨바', '시바', 'ㅅㅂ', 'ㅆㅂ', '병신', 'ㅂㅅ', '븅신', '개새', '새끼', '좆', '존나', '졸라', '미친놈', '미친년', '닥쳐', 'fuck', 'shit', 'bitch'];
+  const BAD_RE = new RegExp(BAD_WORDS.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi');
+  const maskBad = t => t.replace(BAD_RE, w => '*'.repeat(Array.from(w).length));
+  function cleanChat(d) {
+    if (!d) return null;
+    const id = Number(d.id);
+    if (!Number.isFinite(id)) return null;
+    const at = new Date(d.at);
+    return {
+      id, uid: String(d.uid || ''),
+      nick: String(d.nick || '익명').slice(0, 8),
+      skin: Math.max(0, Math.min(99, Math.floor(Number(d.skin) || 0))),
+      text: maskBad(String(d.text || '').slice(0, 40)),
+      at: isNaN(at) ? '' : String(at.getHours()).padStart(2, '0') + ':' + String(at.getMinutes()).padStart(2, '0'),
+    };
+  }
+  const Chat = {
+    rows: [], status: 'idle', lastPoll: 0, sending: false, err: '', errUntil: 0, fake: false,
+    seen: Number(store.get('dj_chat_seen', '-1')),
+    enabled() { return Rank.net || this.fake; },
+    async poll() {
+      if (this.fake || !Rank.net) return;
+      if (!this.rows.length) this.status = 'loading';
+      try {
+        const d = await netCall('GET', '/rest/v1/chat?select=id,uid,nick,skin,text,at&order=id.desc&limit=60');
+        this.rows = (Array.isArray(d) ? d : []).map(cleanChat).filter(Boolean).reverse();
+        this.status = 'ok';
+        // 처음 쓰는 기기는 지난 대화를 모두 읽은 것으로 시작
+        if (this.seen < 0) this.markSeen(true);
+      } catch (e) { if (!this.rows.length) this.status = 'error'; }
+    },
+    unread() { return this.seen < 0 ? 0 : this.rows.filter(r => r.id > this.seen && r.uid !== Rank.uid).length; },
+    markSeen(force) {
+      const m = this.rows.length ? this.rows[this.rows.length - 1].id : 0;
+      if (force || m > this.seen) { this.seen = m; store.set('dj_chat_seen', String(m)); }
+    },
+    showErr(t) { this.err = t; this.errUntil = performance.now() + 2500; },
+    async send() {
+      const t = chatEl.value.replace(/\s+/g, ' ').trim().slice(0, 40);
+      if (!t || this.sending) return;
+      if (this.fake) { this.rows.push({ id: Date.now(), uid: Rank.uid, nick: G.nick, skin: G.skin, text: maskBad(t), at: '지금' }); chatEl.value = ''; return; }
+      this.sending = true;
+      try {
+        await netCall('POST', '/rest/v1/rpc/post_chat', { p_id: Rank.uid, p_secret: Rank.secret, p_nick: G.nick, p_skin: G.skin, p_text: t });
+        chatEl.value = ''; G.chatScroll = 0;
+        await this.poll(); this.markSeen();
+      } catch (e) {
+        this.showErr(String(e && e.message).indexOf('400') >= 0 ? '잠시 후 다시 보내 주세요' : '보내지 못했어요');
+      } finally { this.sending = false; }
+    },
+  };
+  // 채팅 화면이면 3초, 아니면 30초마다 새 글 확인 (새 글 표시용)
+  setInterval(() => {
+    if (!Chat.enabled() || document.hidden) return;
+    const now = Date.now();
+    if (now - Chat.lastPoll < (G.state === 'chat' ? 3000 : 30000)) return;
+    Chat.lastPoll = now;
+    Chat.poll().then(() => { if (G.state === 'chat') Chat.markSeen(); });
+  }, 1000);
+
+  const C_BOX = { x: 4, y: 187, w: 90, h: 16 };
+  const C_SEND = { x: 97, y: 187, w: 27, h: 16 };
+  const C_TOP = 29, C_BOTTOM = 183;
+  function chatLayout() {
+    // 아래(최신)부터 위로 쌓을 때 각 글의 높이
+    return Chat.rows.map(m => {
+      const lines = wrapText(m.text, 104, 'm');
+      const bh = lines.length * 11 + 4;
+      const bw = Math.max(...lines.map(l => textW(l, 'm'))) + 8;
+      return { m, lines, bh, bw, h: bh + 13 };
+    });
+  }
+  function drawChat() {
+    ctx.drawImage(WALL, 0, 0);
+    rrect(6, 5, 116, 20, 'Y', 'O', 'y');
+    ptext('모두의 채팅', 64, 8, 'b', 'O', { edge: null, align: 'c' });
+    const items = chatLayout();
+    const total = items.reduce((a, it) => a + it.h, 0);
+    G.chatScroll = Math.max(0, Math.min(Math.max(0, total - (C_BOTTOM - C_TOP - 4)), G.chatScroll || 0));
+    if (!items.length) {
+      const t = Chat.status === 'loading' ? '불러오는 중…' : Chat.status === 'error' ? '대화를 불러오지 못했어요' : '첫 인사를 남겨 보세요!';
+      ptext(t, 64, 100, 'm', 'o', { edge: null, align: 'c' });
+    }
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, C_TOP, W, C_BOTTOM - C_TOP); ctx.clip();
+    let y = C_BOTTOM - 2 + G.chatScroll;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const { m, lines, bh, bw, h } = items[i];
+      y -= h;
+      if (y > C_BOTTOM) continue;
+      if (y + h < C_TOP) break;
+      const mine = m.uid && m.uid === Rank.uid;
+      if (mine) {
+        ptext('나 · ' + m.at, 122, y, 's', 'o', { edge: null, align: 'r' });
+        rrect(122 - bw, y + 10, bw, bh, 'Y', 'O', 'y');
+        lines.forEach((l, j) => ptext(l, 126 - bw, y + 12 + j * 11, 'm', 'O', { edge: null }));
+      } else {
+        miniHead(6, y + 1, m.skin);
+        const nw = ptext(fitText(m.nick, 70).t, 15, y - 1, 'm', 'l', { edge: null });
+        ptext(m.at, 15 + nw + 2, y, 's', 'o', { edge: null });
+        rrect(6, y + 10, bw, bh, 'W', 'O', 'cream3');
+        lines.forEach((l, j) => ptext(l, 10, y + 12 + j * 11, 'm', 'O', { edge: null }));
+      }
+    }
+    ctx.restore();
+    if (G.chatScroll > 0) {
+      // 위로 올려 보는 중: 맨 아래로 돌아가기 표시
+      rrect(50, C_BOTTOM - 14, 28, 11, 'S', 'O');
+      ptext('▼', 64, C_BOTTOM - 13, 's', 'W', { edge: null, align: 'c' });
+    }
+    rect(0, C_BOTTOM, W, 1, 'cream3');
+    rrect(C_BOX.x, C_BOX.y, C_BOX.w, C_BOX.h, 'W', 'O');
+    rrect(C_SEND.x, C_SEND.y, C_SEND.w, C_SEND.h, Chat.sending ? 'cream3' : 'P', 'O', 'p');
+    ptext('전송', C_SEND.x + C_SEND.w / 2, C_SEND.y + 2, 'm', 'W', { edge: null, align: 'c' });
+    if (Chat.err && performance.now() < Chat.errUntil) {
+      const w = textW(Chat.err, 'm') + 10;
+      rrect(64 - w / 2, C_BOTTOM - 16, w, 14, 'P', 'O');
+      ptext(Chat.err, 64, C_BOTTOM - 14, 'm', 'W', { edge: null, align: 'c' });
+    }
+    button(R_BACK, 'S', 'B', '돌아가기', 'b', 'W', 'B');
+  }
+  function openChat() {
+    if (!G.nick) { openName('chat'); return; }
+    G.state = 'chat'; G.st = 0; G.chatScroll = 0;
+    chatEl.hidden = false;
+    layout();
+    Chat.lastPoll = Date.now();
+    Chat.poll().then(() => Chat.markSeen());
+  }
+  function closeChat() {
+    chatEl.hidden = true; chatEl.blur();
+    Chat.markSeen();
+    G.state = 'title'; G.st = 0;
+  }
+
   // ---------- 화면: 꾸미기 ----------
   const K_HL = { x: 12, y: 108, w: 18, h: 18 }, K_HR = { x: 98, y: 108, w: 18, h: 18 };
   const K_AL = { x: 12, y: 154, w: 18, h: 18 }, K_AR = { x: 98, y: 154, w: 18, h: 18 };
@@ -1472,6 +1643,7 @@
       else if (inBox(p, T_DEX)) { SFX.tap(); G.rankBack = 'title'; G.state = 'dex'; }
       else if (inBox(p, T_SKIN)) { SFX.tap(); G.rankBack = 'title'; G.state = 'skin'; }
       else if (inBox(p, T_NAME)) { SFX.tap(); openName('title'); }
+      else if (Chat.enabled() && inBox(p, T_CHAT)) { SFX.tap(); openChat(); }
     } else if (G.state === 'name') {
       if (inBox(p, N_OK)) { SFX.tap(); closeName(true); }
       else if (inBox(p, N_CANCEL)) { SFX.tap(); closeName(false); }
@@ -1488,6 +1660,10 @@
       else if (inBox(p, R_BACK)) { SFX.tap(); backFromSub(); }
     } else if (G.state === 'dex') {
       if (inBox(p, R_BACK)) { SFX.tap(); backFromSub(); }
+    } else if (G.state === 'chat') {
+      if (inBox(p, C_SEND)) { SFX.tap(); Chat.send(); }
+      else if (inBox(p, R_BACK)) { SFX.tap(); closeChat(); }
+      else if (G.chatScroll > 0 && inBox(p, { x: 50, y: C_BOTTOM - 14, w: 28, h: 11 })) { G.chatScroll = 0; }
     } else if (G.state === 'skin') {
       if (inBox(p, K_HL)) { SFX.tap(); cycleSkin('hat', -1); }
       else if (inBox(p, K_HR)) { SFX.tap(); cycleSkin('hat', 1); }
@@ -1521,11 +1697,32 @@
       if (Math.abs(dx) >= 12) judge(dx < 0 ? 'ok' : 'ng');
       return;
     }
-    if (Math.abs(p.x - d0.x) < 10 && Math.abs(p.y - d0.y) < 10) tap(p);
+    if (!d0.drag && Math.abs(p.x - d0.x) < 10 && Math.abs(p.y - d0.y) < 10) tap(p);
   });
   cvs.addEventListener('pointercancel', () => { down = null; });
+  // 채팅: 끌어 올려 이전 글 보기
+  cvs.addEventListener('pointermove', e => {
+    if (!down || G.state !== 'chat') return;
+    const p = toLogical(e);
+    if (down.ly === undefined) down.ly = down.y;
+    if (Math.abs(p.y - down.y) >= 6 || down.drag) {
+      down.drag = true;
+      G.chatScroll = (G.chatScroll || 0) + (p.y - down.ly);
+      down.ly = p.y;
+    }
+  });
+  cvs.addEventListener('wheel', e => {
+    if (G.state !== 'chat') return;
+    e.preventDefault();
+    G.chatScroll = (G.chatScroll || 0) - e.deltaY / scale;
+  }, { passive: false });
 
   window.addEventListener('keydown', e => {
+    if (G.state === 'chat') {
+      if (e.key === 'Enter') { e.preventDefault(); Chat.send(); }
+      else if (e.key === 'Escape') closeChat();
+      return;
+    }
     if (G.state === 'name') {
       if (e.key === 'Enter') { e.preventDefault(); closeName(true); }
       else if (e.key === 'Escape') closeName(false);
@@ -1577,6 +1774,11 @@
       left: b.x * s + 'px', top: (b.y + OFF) * s + 'px', width: b.w * s + 'px', height: b.h * s + 'px',
       fontSize: Math.round(10 * s) + 'px',
     });
+    const c = C_BOX;
+    Object.assign(chatEl.style, {
+      left: (c.x + 2) * s + 'px', top: (c.y + 2 + OFF) * s + 'px', width: (c.w - 4) * s + 'px', height: (c.h - 4) * s + 'px',
+      fontSize: Math.round(10 * s) + 'px', paddingLeft: Math.round(2 * s) + 'px',
+    });
   }
   window.addEventListener('resize', layout);
 
@@ -1607,6 +1809,7 @@
     else if (G.state === 'rank') drawRank();
     else if (G.state === 'dex') drawDex();
     else if (G.state === 'skin') drawSkin();
+    else if (G.state === 'chat') drawChat();
   }
   let last = 0;
   function frame(ts) {
@@ -1654,6 +1857,13 @@
         .forEach(([n, s], i) => Rank.addLocal({ nick: n, skin: i * 11, team: '' }, { mode: 'normal', score: s, stage: 3 }));
       if (shot === 'long') goRank('title', 'me');
       if (shot === 'longover') { playAt(); G.total = 0; gameOver(); G.st = 1; G.unlockMsg = '꾸미기 해금! (분홍, 민트, 노랑, 보라, 리본, 안경, 왕관)'; G.unlockN = 7; }
+    }
+    else if (shot === 'chat' || shot === 'chattitle') {   // 가짜 대화로 화면 확인 (서버에 쓰지 않음)
+      G.nick = '김성일'; G.skin = 21; Chat.fake = true; Rank.uid = 'me'; Chat.seen = 1; Chat.status = 'ok';
+      [['시스템2팀 이동', 1, '오늘의 판 보스 너무 빠름 ㅠㅠ', 'x'], ['김성일', 21, '반장 지시 나오면 꼭 아래 글자 보세요', 'me'],
+        ['핀홀헌터', 2, '금색 전극 처음 봄!! 1000점 개꿀', 'y'], ['검사왕', 33, '코팅팀 1등 가즈아 씨발', 'z'], ['김성일', 21, 'ㅋㅋ 검사팀이 따라잡는다', 'me']]
+        .forEach(([nick, skin, text, uid], i) => Chat.rows.push({ id: i + 1, uid, nick, skin, text: maskBad(text), at: '14:0' + (i + 2) }));
+      if (shot === 'chat') openChat();
     }
     else if (shot === 'auto') {   // 자동 플레이: 정답 위주 + 13번째마다 일부러 틀림 → 결과를 제목에 기록
       newGame('normal');

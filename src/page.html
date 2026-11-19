@@ -44,7 +44,7 @@ body {
   outline: none;
 }
 #game:focus-visible { box-shadow: 0 0 0 3px var(--focus); }
-#nick {
+#nick, #chatin {
   position: absolute;
   box-sizing: border-box;
   margin: 0;
@@ -59,13 +59,15 @@ body {
   -webkit-user-select: text;
   user-select: text;
 }
-#nick:focus-visible { background: #fff; }
-#nick[hidden] { display: none; }
+#nick:focus-visible, #chatin:focus-visible { background: #fff; }
+#nick[hidden], #chatin[hidden] { display: none; }
+#chatin { text-align: left; }
 </style>
 <div id="wrap">
   <div id="stage">
     <canvas id="game" width="128" height="224" tabindex="0" aria-label="불량 판정소 게임 화면. 왼쪽 화살표는 양품, 오른쪽 화살표는 불량"></canvas>
     <input id="nick" type="text" maxlength="8" autocomplete="off" spellcheck="false" enterkeyhint="done" aria-label="플레이어 이름" hidden>
+    <input id="chatin" type="text" maxlength="40" autocomplete="off" spellcheck="false" enterkeyhint="send" aria-label="채팅 메시지" placeholder="메시지 입력" hidden>
   </div>
 </div>
 <script>

@@ -63,3 +63,59 @@ $$;
 
 revoke all on function public.submit_score(uuid, text, text, integer, text, integer, integer, date, integer) from public;
 grant execute on function public.submit_score(uuid, text, text, integer, text, integer, integer, date, integer) to anon, authenticated;
+
+-- ============================================================
+-- 채팅: 누구나 읽기, 보내기는 post_chat 함수로만 (40자, 기기당 3초에 1번, 최근 100개만 보관)
+-- ============================================================
+create table if not exists public.chat (
+  id    bigint generated always as identity primary key,
+  uid   uuid not null,
+  nick  text not null check (char_length(nick) between 1 and 8),
+  skin  smallint not null default 0 check (skin between 0 and 99),
+  text  text not null check (char_length(text) between 1 and 40),
+  at    timestamptz not null default now()
+);
+create index if not exists chat_uid_at on public.chat (uid, at desc);
+
+alter table public.chat enable row level security;
+drop policy if exists "모두 읽기" on public.chat;
+create policy "모두 읽기" on public.chat for select to anon, authenticated using (true);
+revoke all on public.chat from anon, authenticated;
+grant select on public.chat to anon, authenticated;
+
+-- 보낸 사람 확인: 랭킹 표의 같은 id·비밀값. 기록이 없으면 그 자리에서 줄을 만듦(점수 0)
+create or replace function public.post_chat(
+  p_id uuid, p_secret text, p_nick text, p_skin integer, p_text text
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_secret text;
+  v_last timestamptz;
+begin
+  if p_secret is null or char_length(p_secret) < 32 then
+    raise exception 'bad secret';
+  end if;
+  p_text := btrim(regexp_replace(coalesce(p_text, ''), '\s+', ' ', 'g'));
+  if char_length(p_text) < 1 or char_length(p_text) > 40 then
+    raise exception 'bad text';
+  end if;
+  select secret into v_secret from scores where id = p_id;
+  if v_secret is null then
+    insert into scores (id, secret, nick, skin) values (p_id, p_secret, p_nick, coalesce(p_skin, 0));
+  elsif v_secret <> p_secret then
+    raise exception 'bad secret';
+  end if;
+  select max(at) into v_last from chat where uid = p_id;
+  if v_last is not null and v_last > now() - interval '3 seconds' then
+    raise exception 'too fast';
+  end if;
+  insert into chat (uid, nick, skin, text) values (p_id, p_nick, coalesce(p_skin, 0), p_text);
+  delete from chat where id <= (select id from chat order by id desc offset 100 limit 1);
+end;
+$$;
+
+revoke all on function public.post_chat(uuid, text, text, integer, text) from public;
+grant execute on function public.post_chat(uuid, text, text, integer, text) to anon, authenticated;
