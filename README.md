@@ -69,5 +69,17 @@
 ```
 python tools/build.py
 ```
-화면 확인용: `dist/play.html?shot=title|play|stage|fever|rule|boss|gold|escape|over|rank|team|day|name|dex|skin|run|auto|tut1~tut11`
-- `auto`는 자동으로 한 판을 끝까지 진행하고 결과를 페이지 제목에 기록
+화면 확인용: `dist/play.html?shot=이름` (네트워크를 쓰지 않아 공용 랭킹·채팅에 기록되지 않음)
+- 게임: `play` `stage` `fever` `rule`(판정 결과) `ruleon`(반장 지시 중) `boss` `gold` `escape` `over`
+- 메뉴: `title` `chattitle`(채팅 버튼 표시) `name` `rank` `team` `day` `dex` `skin` `chat` `tut1`~`tut11`
+- 긴 이름 확인: `long` `longtitle` `longover`
+- `run`은 시간을 흘려 화면 변화 확인, `auto`는 자동으로 한 판을 끝까지 진행하고 결과를 페이지 제목에 기록
+
+튜토리얼 그림(`tutorial/*.png`) 다시 찍기: 빌드 후 headless Chrome으로 512×896 창에서 각 화면을 찍음
+- `title`←`chattitle`, `rule`←`ruleon`, 나머지는 파일 이름과 같은 shot
+
+## 화면 표시
+- 논리 해상도 128×224. 창 크기에 맞춰 소수 배율로 꽉 채우고, 세로가 긴 휴대폰은 위아래를 배경으로 늘림(최대 320줄)
+- 캔버스 내부는 기기 픽셀 기준 정수 배율(최대 8)로 그려 도트 크기를 고르게 유지
+- 글자는 4배 크기로 그린 뒤 각 픽셀 가운데만 읽어 도트로 찍음 (영문·작은 글씨 뭉개짐 방지)
+- 판정 결과·반장 지시·보스·피버 안내는 모니터를 가리지 않게 양품·불량 버튼 바로 위 안내 줄에 표시
