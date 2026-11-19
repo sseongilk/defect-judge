@@ -143,6 +143,14 @@
     return r.w;
   }
   const fmt = n => Math.floor(n).toLocaleString('en-US');
+  // 정해진 폭 안에 맞추기: 넘치면 뒤를 줄이고 .. 붙임 (작은 글꼴은 뭉개져서 쓰지 않음)
+  function fitText(t, maxW, f = 'm') {
+    t = String(t);
+    if (textW(t, f) <= maxW) return { t, f };
+    const chars = Array.from(t);
+    while (chars.length > 1 && textW(chars.join('') + '..', f) > maxW) chars.pop();
+    return { t: chars.join('') + '..', f };
+  }
 
   // ---------- 스프라이트 ----------
   const INSPECTOR = [
@@ -902,6 +910,7 @@
     const before = G.total;
     G.total += G.score; store.set('dj_total', String(G.total));
     const opened = [...HATS, ...ACCS].filter(o => o.need > before && o.need <= G.total);
+    G.unlockN = opened.length;
     G.unlockMsg = opened.length ? '꾸미기 해금! (' + opened.map(o => o.name).join(', ') + ')' : '';
     G.overMsg = { code: 'pending' };
     SFX.over();
@@ -1164,10 +1173,12 @@
 
     // 인사 말풍선
     const hello = G.nick ? `안녕, ${G.nick}!` : '어서 와요, 검사원!';
-    const hf = textW(hello, 'm') <= 110 ? 'm' : 's';
-    const hw = textW(hello, hf) + 10;
+    // 긴 이름이면 인사말을 줄이고, 그래도 길면 이름 뒤를 .. 로 줄임
+    const hfit = textW(hello, 'm') <= 104 ? { t: hello, f: 'm' } : fitText(G.nick + '!', 104);
+    const hf = hfit.f;
+    const hw = textW(hfit.t, hf) + 10;
     rrect(64 - hw / 2, 80, hw, 14, 'W');
-    ptext(hello, 64, hf === 'm' ? 82 : 83, hf, 'O', { edge: null, align: 'c' });
+    ptext(hfit.t, 64, hf === 'm' ? 82 : 83, hf, 'O', { edge: null, align: 'c' });
     sprite(Math.round(64 - hw / 2) + 10, 93, TAIL);
 
     // 걸어가는 전극 친구들
@@ -1189,7 +1200,8 @@
     button(T_NAME, 'W', 'cream3', '이름·팀', 'm', 'O');
 
     const best = Math.max(G.best, (Rank.mine() || {}).best || 0);
-    const bt = 'BEST ' + fmt(best);
+    // 점수가 크면 BEST 글자를 빼서 이름·팀 버튼과 겹치지 않게
+    const bt = textW('BEST ' + fmt(best), 's') <= 50 ? 'BEST ' + fmt(best) : fmt(best);
     const bw = textW(bt, 's');
     sprite(122 - bw - 9, 205, STAR);
     ptext(bt, 122, 205, 's', 'o', { edge: null, align: 'r' });
@@ -1291,8 +1303,8 @@
     });
     ptext(overText(), 64, 129, 'm', 'l', { edge: null, align: 'c' });
     if (G.unlockMsg) {
-      const f = textW(G.unlockMsg, 'm') <= 100 ? 'm' : 's';
-      ptext(G.unlockMsg, 64, 144, f, 'p', { edge: null, align: 'c' });
+      const u = textW(G.unlockMsg, 'm') <= 100 ? G.unlockMsg : '꾸미기 ' + G.unlockN + '개 해금!';
+      ptext(u, 64, 144, 'm', 'p', { edge: null, align: 'c' });
     }
     button(O_AGAIN, 'Y', 'y', daily ? '오늘의 판 다시' : '다시 하기', 'b', 'O');
     button(O_RANK, 'S', 'B', '랭킹', 'm', 'W', 'B');
@@ -1339,9 +1351,15 @@
           ptext(r.count + '명', 23 + textW(teamName(r.team), 'm') + 2, y + 3, 's', 'o', { edge: null });
         } else {
           miniHead(21, y + 4, r.skin);
-          ptext(r.nick, 30, y + 2, 'm', 'O', { edge: null });
         }
-        ptext(fmt(r.score), 118, y + 2, 'm', 'O', { edge: null, align: 'r' });
+        const sc = fmt(r.score);
+        const sw = textW(sc, 'm');
+        ptext(sc, 118, y + 2, 'm', 'O', { edge: null, align: 'r' });
+        if (tab !== 'team') {
+          // 이름은 점수 왼쪽까지만: 길면 작은 글꼴, 그래도 길면 … 로 줄임
+          const n = fitText(r.nick, 118 - sw - 4 - 30);
+          ptext(n.t, 30, y + 2, 'm', 'O', { edge: null });
+        }
       };
       list.slice(0, 10).forEach((r, i) => row(r, i, 45 + i * 14));
       const myIdx = list.findIndex(isMe);
@@ -1593,6 +1611,13 @@
     } else if (shot === 'name') { G.team = '검사'; openName('title'); }
     else if (shot === 'dex') { ['pin', 'uncoat', 'dust', 'glare', 'stain', 'boss', 'gold', 'pw_heart', 'pw_loupe'].forEach(k => dexSeen.add(k)); G.state = 'dex'; }
     else if (shot === 'skin') { G.total = 70000; G.skin = 21; G.state = 'skin'; }
+    else if (shot === 'long' || shot === 'longtitle' || shot === 'longover') {   // 긴 이름·큰 점수 겹침 확인
+      G.nick = '가나다라마바사아';
+      [['가나다라마바사아', 1234560], ['WWWWWWWW', 987650], ['검사왕검사왕검사', 45210], ['ABCDEFGH', 3200]]
+        .forEach(([n, s], i) => Rank.addLocal({ nick: n, skin: i * 11, team: '' }, { mode: 'normal', score: s, stage: 3 }));
+      if (shot === 'long') goRank('title', 'me');
+      if (shot === 'longover') { playAt(); G.total = 0; gameOver(); G.st = 1; G.unlockMsg = '꾸미기 해금! (분홍, 민트, 노랑, 보라, 리본, 안경, 왕관)'; G.unlockN = 7; }
+    }
     else if (shot === 'auto') {   // 자동 플레이: 정답 위주 + 13번째마다 일부러 틀림 → 결과를 제목에 기록
       newGame('normal');
       const seen = {};
@@ -1632,8 +1657,9 @@
     txtCache.clear();
     WALL = makeWall();
     G.state = 'title';
-    Rank.init();
     const shot = new URLSearchParams(location.search).get('shot');
+    // 확인용 화면은 공용 랭킹에 쓰지 않도록 이 기기 랭킹만 사용
+    if (shot) Rank.loadLocal(); else Rank.init();
     if (shot) shotView(shot);
     requestAnimationFrame(frame);
   }
