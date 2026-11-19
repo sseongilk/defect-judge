@@ -2,7 +2,7 @@
 
 컨베이어로 들어오는 전극 시트를 보고 양품·불량을 빠르게 판정하는 도트 게임.
 
-처음 하는 사람은 [튜토리얼](TUTORIAL.md) 참고 (화면 그림은 `tutorial/`).
+처음 하는 사람은 [튜토리얼](TUTORIAL.md) 참고 (화면 그림은 `tutorial/`). 게임 안에서는 시작 화면 왼쪽 위 「튜토리얼」 버튼으로 11장을 넘겨 봄, 처음 「게임 시작」 때 한 번 자동 표시.
 
 ## 실행
 - 웹 공개: https://sseongilk.github.io/defect-judge/ (GitHub Pages, `docs/index.html`)
@@ -69,5 +69,5 @@
 ```
 python tools/build.py
 ```
-화면 확인용: `dist/play.html?shot=title|play|stage|fever|rule|boss|gold|escape|over|rank|team|day|name|dex|skin|run|auto`
+화면 확인용: `dist/play.html?shot=title|play|stage|fever|rule|boss|gold|escape|over|rank|team|day|name|dex|skin|run|auto|tut1~tut11`
 - `auto`는 자동으로 한 판을 끝까지 진행하고 결과를 페이지 제목에 기록

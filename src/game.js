@@ -1171,6 +1171,7 @@
   const T_NAME = { x: 6, y: 202, w: 52, h: 14 };
   const T_SOUND = { x: 110, y: 2, w: 16, h: 12 };
   const T_CHAT = { x: 62, y: 202, w: 60, h: 14 };
+  const T_HELP = { x: 3, y: 3, w: 44, h: 13 };
 
   function drawTitle() {
     ctx.drawImage(WALL, 0, 0);
@@ -1180,6 +1181,8 @@
     for (let x = 0; x < W; x += 16) sprite(x, 107, ROOF);
     rect(0, 112, W, 3, 'm');
     sprite(114, 4, soundOn ? SPEAKER : SPEAKER_OFF);
+    rrect(T_HELP.x, T_HELP.y, T_HELP.w, T_HELP.h, 'W', 'O', 'cream3');
+    ptext('튜토리얼', T_HELP.x + T_HELP.w / 2, T_HELP.y + 3, 's', 'O', { edge: null, align: 'c' });
 
     rrect(10, 22, 108, 50, 'W', 'O', 'l');
     rect(14, 25, 6, 1, 'S');
@@ -1444,6 +1447,128 @@
     button(R_BACK, 'P', 'p', '돌아가기', 'b', 'W', 'p');
   }
 
+  // ---------- 화면: 튜토리얼 (한 장씩 넘겨 보기) ----------
+  const P_PREV = { x: 5, y: 182, w: 22, h: 18 }, P_NEXT = { x: 101, y: 182, w: 22, h: 18 };
+  function pill(t, cx, y, fill, fg, f = 's') {
+    const w = textW(t, f) + 8, h = f === 's' ? 11 : 14;
+    rrect(Math.round(cx - w / 2), y, w, h, fill, 'O', fill === 'Y' ? 'y' : null);
+    ptext(t, cx, y + 2, f, fg, { edge: null, align: 'c' });
+  }
+  function big(fn, x, y) { ctx.save(); ctx.translate(x, y); ctx.scale(2, 2); fn(); ctx.restore(); }
+  function miniJudge(x, fill, dark, icon, label) {
+    rrect(x, 54, 52, 22, fill, 'O', dark);
+    sprite(x + 5, 58, icon);
+    ptext(label, x + 35, 59, 'm', 'W', { edge: dark, align: 'c' });
+  }
+  function iconRow(keys, labelFn) {
+    keys.forEach((k, i) => {
+      const x = 9 + i * 39;
+      drawDexIcon({ k }, x, 44);
+      ptext(DEX.find(d => d.k === k).name, x + 15, 65, 's', 'O', { edge: null, align: 'c' });
+      if (labelFn) pill(labelFn(k), x + 15, 77, labelFn(k) === '불량' ? 'P' : 'M', 'W');
+    });
+  }
+  const TUT = [
+    { title: '판정하기', lines: ['결함 없으면 양품', '결함 있으면 불량', '버튼 또는 화면 밀기', 'PC는 ← → 키'],
+      art: () => {
+        ptext('◀ 왼쪽으로', 36, 40, 's', 'm', { edge: null, align: 'c' });
+        ptext('오른쪽으로 ▶', 92, 40, 's', 'p', { edge: null, align: 'c' });
+        miniJudge(10, 'M', 'm', CIRCLE_O, '양품'); miniJudge(66, 'P', 'p', CROSS_X, '불량');
+      } },
+    { title: '진짜 결함 = 불량', lines: ['핀홀·미코팅·크랙이', '보이면 불량!', '갈수록 작아져요'],
+      art: () => iconRow(['pin', 'uncoat', 'crack'], () => '불량') },
+    { title: '가짜 결함 = 양품', lines: ['먼지·빛 반사·얼룩은', '결함이 아니에요', '스테이지 2부터 등장'],
+      art: () => iconRow(['dust', 'glare', 'stain'], () => '양품') },
+    { title: '시간과 하트', lines: ['막대 = 남은 시간', '틀리면 하트 -1', '시간 초과도 하트 -1', '하트 다 잃으면 끝'],
+      art: () => {
+        rrect(14, 44, 100, 7, 'cream3');
+        const tw = 20 + Math.round(70 * (1 - (G.t % 2) / 2));
+        rrect(14, 44, tw, 7, tw < 44 ? 'P' : 'M'); rect(16, 45, tw - 5, 1, 'W');
+        for (let i = 0; i < 3; i++) sprite(46 + i * 13, 62, i < 2 ? HEART : HEART_EMPTY);
+      } },
+    { title: '점수와 콤보', lines: ['빨리 맞힐수록 고득점', '연속 정답 = 콤보', '8개마다 스테이지 UP'],
+      art: () => {
+        ptext('PERFECT!', 64, 40, 'b', 'Y', { edge: 'O', align: 'c' });
+        pill('x7', 40, 62, 'Y', 'O', 'm');
+        ptext('+280', 72, 64, 'm', 'm', { edge: null, align: 'c' });
+        ptext('STAGE 3', 104, 66, 's', 'l', { edge: null, align: 'c' });
+      } },
+    { title: '피버', lines: ['10콤보마다 피버!', '8장 동안 점수 2배', '틀리면 바로 끝'],
+      art: () => {
+        const rb = k => RAINBOW[(((G.t * 10) | 0) + k) % RAINBOW.length];
+        rrect(14, 44, 100, 7, 'cream3'); rrect(14, 44, 80, 7, rb(0));
+        pill('FEVER 점수 x2', 64, 62, rb(2), 'O', 'm');
+      } },
+    { title: '보스 시트', lines: ['스테이지가 오르면 등장', '모니터 속 결함을', '모두 터치하세요', '헛터치는 -0.4초'],
+      art: () => {
+        big(() => buddy(0, 0, 'worry', null, { crown: true }), 48, 40);
+        if (((G.t * 3) | 0) % 2 === 0) sprite(84, 44, LOUPE);
+        pill('결함 터치 1/3', 64, 74, 'P', 'W', 'm');
+      } },
+    { title: '반장 지시', lines: ['지시된 결함만 불량', '다른 결함은 양품', '버튼 위 안내 확인!'],
+      art: () => {
+        pill('미코팅만 불량! (4)', 64, 36, ((G.t * 3) | 0) % 2 ? 'P' : 'Y', ((G.t * 3) | 0) % 2 ? 'W' : 'O', 'm');
+        [['uncoat', '불량', 'P'], ['crack', '양품', 'M']].forEach(([k, l, c], i) => {
+          const x = 22 + i * 54;
+          drawDexIcon({ k }, x, 56); pill(l, x + 15, 78, c, 'W');
+        });
+      } },
+    { title: '도망과 클레임', lines: ['불량을 넘기면 도망!', '3마리면 고객 클레임', '반품 시트 결함 터치'],
+      art: () => {
+        const x = 14 + Math.round((G.t * 20) % 60);
+        big(() => buddy(0, 0, 'cross', 'ng'), x, 42);
+        ptext('헤헤~', x + 46, 52, 's', 'P', { edge: null, align: 'c' });
+        pill('도망! 2/3', 64, 76, 'P', 'W');
+      } },
+    { title: '보너스', lines: ['금색 전극 +1000', '반짝 시트는 아이템', '하트·시간 정지·돋보기'],
+      art: () => {
+        big(() => buddy(0, 0, 'happy', null, { gold: true }), 8, 40);
+        ptext('+1000', 24, 72, 's', 'y', { edge: null, align: 'c' });
+        big(() => buddy(0, 0, 'happy', null, { shiny: true }), 46, 40);
+        if (((G.t * 2) | 0) % 2 === 0) sprite(80, 36, SPARK);
+        sprite(88, 48, HEART); sprite(100, 49, CLOCK); sprite(110, 49, LOUPE);
+        ptext('아이템', 102, 72, 's', 'l', { edge: null, align: 'c' });
+      } },
+    { title: '더 즐기기', lines: ['오늘의 판으로 겨루기', '랭킹 개인·팀·오늘', '도감 모으고 꾸미기'],
+      art: () => {
+        sprite(18, 56, TROPHY);
+        big(() => drawInspector(0, 3, G.skin, (G.t % 2.7) < 0.12), 42, 30);
+        sprite(103, 56, TROPHY);
+      } },
+  ];
+  function openTut(next) {
+    G.tutNext = next || null; G.tutPage = 0; G.tutDone = true; G.state = 'tut';
+    store.set('dj_tut', '1');
+  }
+  function closeTut() {
+    const n = G.tutNext; G.tutNext = null;
+    G.state = 'title'; G.st = 1;
+    if (n) startGame(n);
+  }
+  function flipTut(d) {
+    const p = Math.max(0, Math.min(TUT.length - 1, G.tutPage + d));
+    if (p !== G.tutPage) { G.tutPage = p; SFX.tap(); }
+  }
+  function drawTut() {
+    ctx.drawImage(WALL, 0, 0);
+    header('튜토리얼');
+    const pg = TUT[G.tutPage];
+    rrect(4, 29, 120, 150, 'W', 'O', 'cream3');
+    pg.art();
+    ptext(pg.title, 64, 96, 'b', 'P', { edge: null, align: 'c' });
+    let y = 115;
+    for (const l of pg.lines) for (const s of wrapText(l, 110, 'm')) { ptext(s, 64, y, 'm', 'O', { edge: null, align: 'c' }); y += 13; }
+    // 쪽 넘기기
+    const first = G.tutPage === 0, last = G.tutPage === TUT.length - 1;
+    if (!first) { rrect(P_PREV.x, P_PREV.y, P_PREV.w, P_PREV.h, 'Y', 'O', 'y'); sprite(P_PREV.x + 9, P_PREV.y + 5, ARROW_L); }
+    if (!last) { rrect(P_NEXT.x, P_NEXT.y, P_NEXT.w, P_NEXT.h, 'Y', 'O', 'y'); sprite(P_NEXT.x + 9, P_NEXT.y + 5, ARROW_R); }
+    const dw = TUT.length * 6;
+    for (let i = 0; i < TUT.length; i++) rect(64 - dw / 2 + i * 6 + 1, 185, 4, 4, i === G.tutPage ? 'P' : 'cream3');
+    ptext((G.tutPage + 1) + ' / ' + TUT.length, 64, 191, 's', 'o', { edge: null, align: 'c' });
+    if (G.tutNext) button(R_BACK, last ? 'Y' : 'W', last ? 'y' : 'cream3', last ? '시작하기' : '건너뛰기', 'b', 'O');
+    else button(R_BACK, 'P', 'p', '돌아가기', 'b', 'W', 'p');
+  }
+
   // ---------- 채팅 (웹 공개판 Supabase에서만) ----------
   // 줄바꿈: 띄어쓰기 단위로 나누고, 한 단어가 너무 길면 글자 단위로 자름
   function wrapText(t, maxW, f) {
@@ -1643,6 +1768,8 @@
   }
   function startGame(mode) {
     G.pendingMode = mode;
+    // 처음 하는 사람은 튜토리얼을 먼저 한 번 보여 줌
+    if (!G.nick && !G.tutDone && !store.get('dj_tut', '')) { openTut(mode); return; }
     if (!G.nick) openName('play'); else newGame(mode);
   }
   function backFromSub() { G.state = G.rankBack === 'over' ? 'over' : 'title'; G.st = 1; }
@@ -1650,6 +1777,7 @@
   function tap(p) {
     if (G.state === 'title') {
       if (inBox(p, T_SOUND)) { soundOn = !soundOn; store.set('dj_sound', soundOn ? '1' : '0'); SFX.tap(); return; }
+      if (inBox(p, T_HELP)) { SFX.tap(); openTut(null); return; }
       if (inBox(p, T_START)) { SFX.tap(); startGame('normal'); }
       else if (inBox(p, T_DAILY)) { SFX.tap(); startGame('daily'); }
       else if (inBox(p, T_RANK)) { SFX.tap(); goRank('title'); }
@@ -1673,6 +1801,10 @@
       else if (inBox(p, R_BACK)) { SFX.tap(); backFromSub(); }
     } else if (G.state === 'dex') {
       if (inBox(p, R_BACK)) { SFX.tap(); backFromSub(); }
+    } else if (G.state === 'tut') {
+      if (inBox(p, P_PREV)) flipTut(-1);
+      else if (inBox(p, P_NEXT)) flipTut(1);
+      else if (inBox(p, R_BACK)) { SFX.tap(); closeTut(); }
     } else if (G.state === 'chat') {
       if (inBox(p, C_SEND)) { SFX.tap(); Chat.send(); }
       else if (inBox(p, R_BACK)) { SFX.tap(); closeChat(); }
@@ -1710,6 +1842,8 @@
       if (Math.abs(dx) >= 12) judge(dx < 0 ? 'ok' : 'ng');
       return;
     }
+    // 튜토리얼: 왼쪽으로 밀면 다음 장, 오른쪽으로 밀면 이전 장
+    if (G.state === 'tut' && Math.abs(p.x - d0.x) >= 16 && Math.abs(p.x - d0.x) > Math.abs(p.y - d0.y)) { flipTut(p.x < d0.x ? 1 : -1); return; }
     if (!d0.drag && Math.abs(p.x - d0.x) < 10 && Math.abs(p.y - d0.y) < 10) tap(p);
   });
   cvs.addEventListener('pointercancel', () => { down = null; });
@@ -1743,6 +1877,14 @@
     }
     unlockAudio();
     const k = e.key;
+    if (G.state === 'tut') {
+      if (k === 'ArrowLeft') flipTut(-1);
+      else if (k === 'ArrowRight') flipTut(1);
+      else if (k === 'Escape' || ((k === 'Enter' || k === ' ') && G.tutPage === TUT.length - 1)) closeTut();
+      else if (k === 'Enter' || k === ' ') flipTut(1);
+      e.preventDefault();
+      return;
+    }
     if (G.state === 'play') {
       if (k === 'ArrowLeft' || k === 'a' || k === 'A' || k === 'j' || k === 'J') { judge('ok'); e.preventDefault(); }
       else if (k === 'ArrowRight' || k === 'd' || k === 'D' || k === 'l' || k === 'L') { judge('ng'); e.preventDefault(); }
@@ -1821,6 +1963,7 @@
     else if (G.state === 'name') drawName();
     else if (G.state === 'rank') drawRank();
     else if (G.state === 'dex') drawDex();
+    else if (G.state === 'tut') drawTut();
     else if (G.state === 'skin') drawSkin();
     else if (G.state === 'chat') drawChat();
   }
@@ -1842,7 +1985,8 @@
       G.phase = 'judge'; G.limit = 3; G.left = 2; G.frozen = true;
       if (extra) extra();
     };
-    if (shot === 'play') playAt();
+    if (/^tut\d+$/.test(shot)) { G.state = 'tut'; G.tutPage = Math.min(TUT.length, +shot.slice(3)) - 1; G.tutNext = shot === 'tut1' ? 'normal' : null; }
+    else if (shot === 'play') playAt();
     else if (shot === 'stage') playAt(null, () => { G.noteCur = { text: 'STAGE 4!', col: 'Y' }; G.noteT = 1.0; });
     else if (shot === 'fever') playAt(null, () => { G.fever = 5; G.combo = 12; G.freezeT = 2; });
     else if (shot === 'rule') playAt(Object.assign(makeItem(3, 0), { defect: 'crack', decoy: null, lvl: 0, dx: 12, dy: 34, shiny: true, gold: false }),
