@@ -964,8 +964,8 @@
   }
 
   // ---------- 화면: 게임 ----------
-  const OK_BTN = { x: 4, y: 164, w: 58, h: 42 };
-  const NG_BTN = { x: 66, y: 164, w: 58, h: 42 };
+  const OK_BTN = { x: 4, y: 180, w: 58, h: 42 };
+  const NG_BTN = { x: 66, y: 180, w: 58, h: 42 };
   const ease = k => 1 - Math.pow(1 - k, 3);
   const RAINBOW = ['P', 'Y', 'M', 'S', 'L'];
 
@@ -1105,13 +1105,13 @@
     drawJudgeButton(OK_BTN, 'M', 'm', CIRCLE_O, '양품', G.pressT > 0 && G.pressed === 'ok');
     drawJudgeButton(NG_BTN, 'P', 'p', CROSS_X, '불량', G.pressT > 0 && G.pressed === 'ng');
     if (it.boss && G.phase !== 'result') {
-      ctx.fillStyle = 'rgba(255,244,224,0.6)'; ctx.fillRect(4, 164, 120, 44);
+      ctx.fillStyle = 'rgba(255,244,224,0.6)'; ctx.fillRect(4, 180, 120, 44);
     }
-    // 맨 아래 안내 줄: 보스 / 반장 지시 / 기본 안내 (모니터를 가리지 않음)
+    // 안내 줄(버튼 바로 위): 보스 / 반장 지시 / 판정 결과 / 기본 안내 (모니터를 가리지 않음)
     const foot = (label, fill, fg) => {
       const w = Math.min(124, textW(label, 'm') + 10);
-      rrect(64 - w / 2, 209, w, 14, fill, 'O');
-      ptext(label, 64, 211, 'm', fg, { edge: null, align: 'c' });
+      rrect(64 - w / 2, 163, w, 14, fill, 'O');
+      ptext(label, 64, 165, 'm', fg, { edge: null, align: 'c' });
     };
     if (G.phase === 'result' && G.popup) {
       // 판정 결과: 문구 + 결함 이름 (예: PERFECT! 크랙 / MISS! 핀홀 / 크랙 통과)
@@ -1122,7 +1122,7 @@
         name = DEFECT_NAME[it.defect || it.decoy] + (passed ? ' 통과' : it.decoy ? '(양품)' : '');
       }
       foot(G.popup + (name ? ' ' + name : ''), good ? 'Y' : 'P', good ? 'O' : 'W');
-      if (good && (G.popup === 'PERFECT!' || it.boss) && ((G.t * 8) | 0) % 2 === 0) { sprite(2, 212, SPARK); sprite(121, 212, SPARK); }
+      if (good && (G.popup === 'PERFECT!' || it.boss) && ((G.t * 8) | 0) % 2 === 0) { sprite(2, 167, SPARK); sprite(121, 167, SPARK); }
     } else if (it.boss && G.phase !== 'result') {
       const found = it.parts.filter(q => q.found).length;
       foot((it.claim ? '반품! ' : '') + '결함 터치 ' + found + '/' + it.parts.length, 'P', 'W');
@@ -1130,7 +1130,7 @@
       const blink = G.rule.fresh && G.phase !== 'judge' && ((G.t * 6) | 0) % 2 === 0;
       foot(DEFECT_NAME[G.rule.type] + '만 불량! (' + G.rule.left + ')', blink ? 'Y' : 'P', blink ? 'O' : 'W');
     } else if (fever) foot('FEVER 점수 x2', rb(2), 'O');
-    else ptext('◀ 밀어서 판정 ▶', 64, 211, 'm', 'o', { edge: null, align: 'c' });
+    else ptext('◀ 밀어서 판정 ▶', 64, 165, 'm', 'o', { edge: null, align: 'c' });
     ctx.restore();
   }
   function drawJudgeButton(b, fill, dark, icon, label, down) {
