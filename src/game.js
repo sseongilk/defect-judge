@@ -83,6 +83,9 @@
 
   // ---------- 도트 글자 (임계값으로 또렷하게 + 외곽선) ----------
   const FONTS = { b: "12px 'Galmuri11B', monospace", m: "10px 'Galmuri9', monospace", s: "8px 'Galmuri7', monospace" };
+  // 4배 크기로 그린 뒤 각 픽셀 칸의 가운데만 읽음: 브라우저가 글자를 반 픽셀 어긋나게 그려도 원래 도트 그대로 나옴
+  const TK = 4;
+  const FONTS_BIG = { b: `${12 * TK}px 'Galmuri11B', monospace`, m: `${10 * TK}px 'Galmuri9', monospace`, s: `${8 * TK}px 'Galmuri7', monospace` };
   const txtCache = new Map();
   function textImg(t, f, fill, edge, scale, shadow) {
     const key = `${t}|${f}|${fill}|${edge}|${scale}|${shadow}`;
@@ -90,17 +93,21 @@
     if (r) return r;
     const m = document.createElement('canvas');
     const mc = m.getContext('2d');
-    mc.font = FONTS[f];
-    const tw = Math.ceil(mc.measureText(t).width) + 8, th = 28;
-    m.width = tw; m.height = th;
-    // 기준선을 정수 픽셀에 맞춰야 도트 글꼴이 번지지 않음
-    mc.font = FONTS[f]; mc.textBaseline = 'alphabetic'; mc.fillStyle = '#fff';
-    mc.fillText(t, 4, 20);
-    const src = mc.getImageData(0, 0, tw, th).data;
+    mc.font = FONTS_BIG[f];
+    const chars = Array.from(t);
+    // 글자 위치는 픽셀 단위로 반올림해서 쌓음
+    const adv = chars.map(ch => Math.round(mc.measureText(ch).width / TK));
+    const tw = adv.reduce((a, b) => a + b, 0) + 8, th = 28;
+    m.width = tw * TK; m.height = th * TK;
+    mc.font = FONTS_BIG[f]; mc.textBaseline = 'alphabetic'; mc.fillStyle = '#fff';
+    let cx = 4;
+    chars.forEach((ch, i) => { mc.fillText(ch, cx * TK, 20 * TK); cx += adv[i]; });
+    const src = mc.getImageData(0, 0, tw * TK, th * TK).data;
     const on = new Uint8Array(tw * th);
+    const half = TK >> 1, rowW = tw * TK;
     let x0 = tw, y0 = th, x1 = -1, y1 = -1;
     for (let j = 0; j < th; j++) for (let i = 0; i < tw; i++) {
-      if (src[(j * tw + i) * 4 + 3] >= 120) {
+      if (src[((j * TK + half) * rowW + i * TK + half) * 4 + 3] >= 128) {
         on[j * tw + i] = 1;
         if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j;
       }
@@ -417,8 +424,9 @@
   };
 
   // ---------- 팀·날짜 ----------
-  const TEAMS = ['', '코팅', '프레스', '슬리팅', '노칭', '조립', '검사', '설비', '연구'];
-  const teamName = t => t ? t + '팀' : '무소속';
+  // 조직 목록. '' = 무소속
+  const TEAMS = ['', '경영기획실', '영업부', '구매부', 'SW A팀', '검사기술팀', '공정기술 1팀', '공정기술 2팀', 'SW B팀', '시스템1팀', '시스템2팀', 'SW기술팀', '설계기술팀'];
+  const teamName = t => t || '무소속';
   function todayStr() {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -1237,8 +1245,8 @@
   const N_OK = { x: 16, y: 150, w: 46, h: 16 };
   const N_CANCEL = { x: 66, y: 150, w: 46, h: 16 };
   const NICK_BOX = { x: 16, y: 108, w: 96, h: 16 };
-  const N_TL = { x: 14, y: 129, w: 16, h: 14 };
-  const N_TR = { x: 98, y: 129, w: 16, h: 14 };
+  const N_TL = { x: 10, y: 129, w: 13, h: 14 };
+  const N_TR = { x: 105, y: 129, w: 13, h: 14 };
 
   function drawName() {
     ctx.drawImage(WALL, 0, 0);
@@ -1248,10 +1256,10 @@
     ptext('최대 8글자', 64, 88, 'm', 'l', { edge: null, align: 'c' });
     rrect(NICK_BOX.x - 2, NICK_BOX.y - 2, NICK_BOX.w + 4, NICK_BOX.h + 4, 'cream', 'O');
     // 팀 고르기
-    rrect(N_TL.x, N_TL.y, N_TL.w, N_TL.h, 'Y', 'O'); sprite(N_TL.x + 6, N_TL.y + 3, ARROW_L);
-    rrect(N_TR.x, N_TR.y, N_TR.w, N_TR.h, 'Y', 'O'); sprite(N_TR.x + 6, N_TR.y + 3, ARROW_R);
-    rrect(32, 129, 64, 14, 'cream2', 'O');
-    ptext(teamName(G.teamSel), 64, 131, 'm', 'O', { edge: null, align: 'c' });
+    rrect(N_TL.x, N_TL.y, N_TL.w, N_TL.h, 'Y', 'O'); sprite(N_TL.x + 5, N_TL.y + 3, ARROW_L);
+    rrect(N_TR.x, N_TR.y, N_TR.w, N_TR.h, 'Y', 'O'); sprite(N_TR.x + 4, N_TR.y + 3, ARROW_R);
+    rrect(24, 129, 80, 14, 'cream2', 'O');
+    ptext(fitText(teamName(G.teamSel), 76).t, 64, 131, 'm', 'O', { edge: null, align: 'c' });
     button(N_OK, 'M', 'm', '확인', 'b', 'W', 'm');
     button(N_CANCEL, 'cream3', 'o', '취소', 'b', 'o');
   }
@@ -1373,15 +1381,20 @@
           rrect(8, y + 2, 11, 9, ['Y', 'G', 'Z'][i]);
           ptext(String(i + 1), 13, y + 3, 's', 'O', { edge: null, align: 'c' });
         } else ptext(String(i + 1), 13, y + 3, 's', 'o', { edge: null, align: 'c' });
-        if (tab === 'team') {
-          ptext(teamName(r.team), 23, y + 2, 'm', 'O', { edge: null });
-          ptext(r.count + '명', 23 + textW(teamName(r.team), 'm') + 2, y + 3, 's', 'o', { edge: null });
-        } else {
-          miniHead(21, y + 4, r.skin);
-        }
+        if (tab !== 'team') miniHead(21, y + 4, r.skin);
         const sc = fmtShort(r.score);
         const sw = textW(sc, 'm');
         ptext(sc, 118, y + 2, 'm', 'O', { edge: null, align: 'r' });
+        if (tab === 'team') {
+          // 조직 이름 우선, 자리가 남으면 인원도 표시 (이름이 길면 인원 생략)
+          const room = 118 - sw - 4 - 21;
+          const name = teamName(r.team);
+          const cnt = r.count + '명';
+          const nwFull = textW(name, 'm');
+          const tn = fitText(name, room);
+          const nw = ptext(tn.t, 21, y + 2, 'm', 'O', { edge: null });
+          if (nwFull + 2 + textW(cnt, 's') <= room) ptext(cnt, 21 + nw + 1, y + 3, 's', 'o', { edge: null });
+        }
         if (tab !== 'team') {
           // 이름은 점수 왼쪽까지만: 길면 작은 글꼴, 그래도 길면 … 로 줄임
           const n = fitText(r.nick, 118 - sw - 4 - 30);
@@ -1842,13 +1855,14 @@
     else if (shot === 'rank' || shot === 'team' || shot === 'day') {
       const today = todayStr();
       [['검사왕', 31800, 13, '코팅'], ['핀홀헌터', 22650, 2, '검사'], ['테스트', 12450, 31, '코팅'], ['초보', 3200, 0, '']]
+        .map(([n, s, skin, team]) => [n, s, skin, { '코팅': '시스템2팀', '검사': 'SW B팀' }[team] || team])
         .forEach(([n, s, skin, team], i) => {
           Rank.addLocal({ nick: n, skin, team }, { mode: 'normal', score: s, stage: 3 });
           if (i < 3) Rank.addLocal({ nick: n, skin, team }, { mode: 'daily', score: s / 2, stage: 2, day: today });
         });
-      G.team = '코팅';
+      G.team = '시스템2팀';
       goRank('title', shot === 'rank' ? 'me' : shot);
-    } else if (shot === 'name') { G.team = '검사'; openName('title'); }
+    } else if (shot === 'name') { G.team = '공정기술 1팀'; openName('title'); }
     else if (shot === 'dex') { ['pin', 'uncoat', 'dust', 'glare', 'stain', 'boss', 'gold', 'pw_heart', 'pw_loupe'].forEach(k => dexSeen.add(k)); G.state = 'dex'; }
     else if (shot === 'skin') { G.total = 70000; G.skin = 21; G.state = 'skin'; }
     else if (shot === 'long' || shot === 'longtitle' || shot === 'longover') {   // 긴 이름·큰 점수 겹침 확인

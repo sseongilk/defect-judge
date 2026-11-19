@@ -13,6 +13,9 @@ create table if not exists public.scores (
 );
 alter table public.scores add column if not exists skin smallint not null default 0 check (skin between 0 and 99);
 alter table public.scores add column if not exists team text not null default '' check (char_length(team) <= 8);
+-- 조직 이름은 12글자까지 (예: VISION연구소)
+alter table public.scores drop constraint if exists scores_team_check;
+alter table public.scores add constraint scores_team_check check (char_length(team) <= 12);
 alter table public.scores add column if not exists day date;
 alter table public.scores add column if not exists day_best integer not null default 0 check (day_best between 0 and 10000000);
 
