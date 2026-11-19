@@ -1450,7 +1450,7 @@
   const inBox = (p, b) => p.x >= b.x && p.x < b.x + b.w && p.y >= b.y && p.y < b.y + b.h;
   function toLogical(e) {
     const r = cvs.getBoundingClientRect();
-    return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H };
+    return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * HV - OFF };
   }
   function goRank(back, tab) {
     G.rankBack = back; G.state = 'rank'; G.st = 0;
@@ -1550,18 +1550,31 @@
 
   // ---------- 화면 크기 ----------
   let scale = 3;
+  let RES = 1;   // 캔버스 내부 배율
+  let HV = H, OFF = 0;   // 실제 캔버스 높이(논리 픽셀)와 게임 내용 시작 위치
   function layout() {
     const cs = getComputedStyle(wrapEl);
     const aw = wrapEl.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     const ah = wrapEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-    let s = Math.min(aw / W, ah / H);
-    s = s >= 2 ? Math.floor(s) : Math.max(1, s);
+    // 화면에 꽉 차게 (비율 유지, 소수 배율 허용). 정수 배율만 쓰면 휴대폰에서 여백이 크게 남음
+    const s = Math.max(0.5, Math.min(aw / W, ah / H));
     scale = s;
-    stageEl.style.width = W * s + 'px';
-    stageEl.style.height = H * s + 'px';
+    // 휴대폰처럼 세로가 더 길면 위아래를 배경으로 늘려 빈 띠가 없게 함 (게임 내용은 가운데 224줄)
+    HV = Math.max(H, Math.min(320, Math.floor(ah / s)));
+    OFF = Math.floor((HV - H) / 2);
+    stageEl.style.width = Math.floor(W * s) + 'px';
+    stageEl.style.height = Math.floor(HV * s) + 'px';
+    // 내부 해상도는 기기 픽셀 기준 정수 배율로 그려서 도트 크기가 고르게 보이게 함
+    const k = Math.max(1, Math.min(8, Math.ceil(s * (window.devicePixelRatio || 1))));
+    if (k !== RES) {
+      RES = k;
+      cvs.width = W * k;
+      ctx.imageSmoothingEnabled = false;
+    }
+    if (cvs.height !== HV * RES) { cvs.height = HV * RES; ctx.imageSmoothingEnabled = false; }
     const b = NICK_BOX;
     Object.assign(nickEl.style, {
-      left: b.x * s + 'px', top: b.y * s + 'px', width: b.w * s + 'px', height: b.h * s + 'px',
+      left: b.x * s + 'px', top: (b.y + OFF) * s + 'px', width: b.w * s + 'px', height: b.h * s + 'px',
       fontSize: Math.round(10 * s) + 'px',
     });
   }
@@ -1571,6 +1584,22 @@
 
   // ---------- 루프 ----------
   function draw() {
+    ctx.setTransform(RES, 0, 0, RES, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    if (OFF > 0 || HV > H) {
+      // 위아래 늘어난 띠: 시작 화면은 위쪽 하늘색, 나머지는 바둑판 배경
+      ctx.drawImage(WALL, 0, 0); ctx.drawImage(WALL, 0, HV - H);
+      if (G.state === 'title') rect(0, 0, W, OFF, 'sky');
+    }
+    ctx.translate(0, OFF);
+    drawState();
+    if (G.state === 'over' && (OFF > 0 || HV > H)) {
+      ctx.setTransform(RES, 0, 0, RES, 0, 0);
+      ctx.fillStyle = 'rgba(74,48,84,0.7)';
+      ctx.fillRect(0, 0, W, OFF); ctx.fillRect(0, OFF + H, W, HV - OFF - H);
+    }
+  }
+  function drawState() {
     if (G.state === 'title') drawTitle();
     else if (G.state === 'play') drawPlay();
     else if (G.state === 'over') drawOver();
